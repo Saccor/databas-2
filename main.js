@@ -394,7 +394,6 @@ async function shipOrders() {
   try {
     // Find pending sales orders
     const pendingOrders = await SalesOrder.find({ status: 'pending' }).populate('offer');
-    const pendingOrders = await SalesOrder.find({ status: 'pending' }).populate('offer');
 
     if (pendingOrders.length === 0) {
       console.log('No pending orders found.');
@@ -456,31 +455,6 @@ async function shipOrders() {
 
     // Update order status to 'shipped'
     selectedOrder.status = 'shipped';
-
-    // Calculate total revenue and revenue per offer
-    const totalPrice = selectedOrder.offer.price * selectedOrder.quantity;
-    const revenuePerOffer = selectedOrder.offer.price * selectedOrder.quantity;
-
-    // Check if the quantity is greater than 10 and apply a discount
-    if (selectedOrder.quantity > 10) {
-      const discount = 0.1; // 10% discount
-      totalPrice -= totalPrice * discount;
-    }
-
-    // Calculate total profit and profit per offer
-    const costPerOffer = selectedOrder.offer.products.reduce(
-      (totalCost, product) => totalCost + product.cost,
-      0
-    );
-    const profit = (totalPrice - costPerOffer) * 0.7; // 70% of the difference is profit
-    const profitPerOffer = profit / selectedOrder.quantity;
-
-    // Update order fields
-    selectedOrder.totalRevenue = totalPrice;
-    selectedOrder.revenuePerOffer = revenuePerOffer;
-    selectedOrder.totalProfit = profit;
-    selectedOrder.profitPerOffer = profitPerOffer;
-
     await selectedOrder.save();
 
     // Update stock for individual product orders
