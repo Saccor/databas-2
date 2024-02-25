@@ -1,3 +1,6 @@
+//main.js
+
+
 const mongoose = require('mongoose');
 const readline = require('readline');
 
@@ -99,13 +102,7 @@ async function addNewProduct() {
       // Check if the selected index is valid
       if (selectedSupplierIndex >= 0 && selectedSupplierIndex < suppliers.length) {
         supplier = suppliers[selectedSupplierIndex];
-      } else {
-        console.log('Invalid supplier selection. Using default supplier.');
-        // You may handle this differently based on your application's requirements.
-        // For simplicity, here we are using a default supplier.
-        supplier = suppliers[0];
-      }
-    }
+      }  }
 
     // Create the new product with the selected supplier
     const newProduct = await Product.create({
@@ -135,7 +132,6 @@ async function viewProductsByCategory() {
       console.log(`${index + 1}. ${category}`);
     });
 
-
     // Prompt user to select an existing category or create a new one
     const categoryOption = await prompt('Select a category (enter number) or create a new one (type "new"): ');
 
@@ -150,28 +146,26 @@ async function viewProductsByCategory() {
       if (selectedCategoryIndex >= 0 && selectedCategoryIndex < existingCategories.length) {
         const selectedCategory = existingCategories[selectedCategoryIndex];
 
-// Find products by the selected category
-const products = await Product.find({ category: selectedCategory }).populate('supplier');
+        // Find products by the selected category
+        const products = await Product.find({ category: selectedCategory }).populate('supplier');
 
-if (products.length === 0) {
-  console.log(`No products found for category '${selectedCategory}'.`);
-  return;
-}
+        if (products.length === 0) {
+          console.log(`No products found for category '${selectedCategory}'.`);
+          return;
+        }
 
-// Display products with supplier information
-console.log(`\nProducts for category '${selectedCategory}':`);
-products.forEach((product) => {
-  const supplierInfo = product.supplier ? `Supplier: ${product.supplier.name}` : 'No Supplier';
-  console.log(`- ${product.name}, Price: $${product.price}, Stock: ${product.stock}, ${supplierInfo}`);
-});
-
+        // Display products with supplier information
+        console.log(`\nProducts for category '${selectedCategory}':`);
+        products.forEach((product) => {
+          const supplierInfo = product.supplier ? `Supplier: ${product.supplier.name}` : 'No Supplier';
+          console.log(`- ${product.name}, Price: $${product.price}, Stock: ${product.stock}, ${supplierInfo}`);
+        });
       }
     }
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
-
 
 // Function to view products by supplier
 async function viewProductsBySupplier() {
@@ -184,7 +178,7 @@ async function viewProductsBySupplier() {
     suppliers.forEach((supplier, index) => {
       console.log(`${index + 1}. ${supplier.name}`);
     });
-  
+
     // Prompt user to select an existing supplier or create a new one
     const supplierOption = await prompt('Select a supplier (enter number) or create a new one (type "new"): ');
 
@@ -221,7 +215,6 @@ async function viewProductsBySupplier() {
   }
 }
 
-
 // Function to view all offers within a price range
 async function viewOffersWithinPriceRange() {
   try {
@@ -249,56 +242,59 @@ async function viewOffersWithinPriceRange() {
 // Function to view all offers that contain a product from a specific category
 async function viewOffersByCategory() {
   try {
-    const category = await prompt('Enter category name: ');
+    // Find all existing categories
+    const existingCategories = await Product.distinct('category');
 
-    // Find products in the category
-    const products = await Product.find({ category });
-
-    if (products.length === 0) {
-      console.log(`No products found for category '${category}'.`);
-      return;
-    }
-
-    // Find offers that contain products from the category
-    const offers = await Offer.find({ products: { $in: products.map((p) => p._id) } });
-
-    if (offers.length === 0) {
-      console.log(`No offers found containing products from category '${category}'.`);
-      return;
-    }
-
-    // Display offers
-    console.log(`\nOffers containing products from category '${category}':`);
-    offers.forEach((offer) => {
-      console.log(`- Offer ${offer._id}, Price: $${offer.price}`);
+    // Display existing categories
+    console.log('\nExisting Categories:');
+    existingCategories.forEach((category, index) => {
+      console.log(`${index + 1}. ${category}`);
     });
+
+    // Prompt user to select an existing category or create a new one
+    const categoryOption = await prompt('Select a category (enter number) or create a new one (type "new"): ');
+
+    if (categoryOption.toLowerCase() === 'new') {
+      // If the user chooses to create a new category, call the addNewCategory function
+      await addNewCategory();
+    } else {
+      // If the user selects an existing category, proceed to find and display offers
+      const selectedCategoryIndex = parseInt(categoryOption) - 1;
+
+      // Check if the selected index is valid
+      if (selectedCategoryIndex >= 0 && selectedCategoryIndex < existingCategories.length) {
+        const selectedCategory = existingCategories[selectedCategoryIndex];
+
+        // Find products in the selected category
+        const products = await Product.find({ category: selectedCategory });
+
+        if (products.length === 0) {
+          console.log(`No products found for category '${selectedCategory}'.`);
+          return;
+        }
+
+        // Find offers that contain products from the selected category
+        const offers = await Offer.find({ products: { $in: products.map((p) => p._id) } });
+
+        if (offers.length === 0) {
+          console.log(`No offers found containing products from category '${selectedCategory}'.`);
+          return;
+        }
+
+        // Display offers
+        console.log(`\nOffers containing products from category '${selectedCategory}':`);
+        offers.forEach((offer) => {
+          console.log(`- Offer ${offer._id}, Price: $${offer.price}`);
+        });
+      } else {
+        console.log('Invalid category selection. Please try again.');
+      }
+    }
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
 
-// Function to view the number of offers based on the number of its products in stock
-async function viewOfferCountByStock() {
-  try {
-    const stockThreshold = parseInt(await prompt('Enter stock threshold: '));
-
-    // Find offers based on the number of products in stock
-    const offers = await Offer.find({ products: { $elemMatch: { stock: { $gte: stockThreshold } } } });
-
-    if (offers.length === 0) {
-      console.log(`No offers found with products having stock greater than or equal to ${stockThreshold}.`);
-      return;
-    }
-
-    // Display offers
-    console.log(`\nOffers with products having stock greater than or equal to ${stockThreshold}:`);
-    offers.forEach((offer) => {
-      console.log(`- Offer ${offer._id}, Price: $${offer.price}`);
-    });
-  } catch (error) {
-    console.error('Error:', error.message);
-  }
-}
 
 // Function to create an order for products
 async function createProductOrder() {
@@ -387,7 +383,6 @@ async function createOfferOrder() {
     console.error('Error:', error.message);
   }
 }
-
 
 // Function to ship orders
 async function shipOrders() {
@@ -501,10 +496,6 @@ async function shipOrders() {
   }
 }
 
-
-
-
-
 // Function to add a new supplier
 async function addNewSupplier() {
   try {
@@ -594,7 +585,9 @@ function prompt(question) {
 }
 
 // Start the main menu
+
 async function mainMenu() {
+  await connectToDatabase();
   try {
     console.log('\n=== Product Management System ===');
     console.log('1. Add new category');
@@ -659,30 +652,21 @@ async function mainMenu() {
         await viewSumOfProfits();
         break;
       case '15':
+        console.log('Exiting the Product Management System. Goodbye!');
         rl.close();
         process.exit(0);
         break;
       default:
-        console.log('Invalid option. Please try again.');
+        console.log('Invalid option. Please select a valid option.');
     }
-
-    // After each action, go back to the main menu
-    await mainMenu();
-  } catch (error) {
-    console.error('Error:', error.message);
-  }
-}
-
-// Start the application
-async function start() {
-  try {
-    await connectToDatabase();
-    await mainMenu();
   } catch (error) {
     console.error('Error:', error.message);
   } finally {
-    mongoose.disconnect();
+    // Continue to the main menu
+    mainMenu();
   }
 }
 
-start();
+// Connect to the MongoDB database before starting the main menu
+connectToDatabase();
+mainMenu();
