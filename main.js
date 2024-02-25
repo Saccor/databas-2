@@ -1,6 +1,4 @@
-//main.js
-
-
+// Required modules
 const mongoose = require('mongoose');
 const readline = require('readline');
 
@@ -54,6 +52,13 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
+// Function to prompt the user for input
+function prompt(question) {
+  return new Promise((resolve) => {
+    rl.question(question, resolve);
+  });
+}
+
 // Function to add a new category
 async function addNewCategory() {
   try {
@@ -68,43 +73,44 @@ async function addNewCategory() {
 // Function to add a new product
 async function addNewProduct() {
   try {
+    // Gathering product details
     const name = await prompt('Enter product name: ');
     const category = await prompt('Enter product category: ');
     const price = parseFloat(await prompt('Enter product price: '));
     const cost = parseFloat(await prompt('Enter product cost: '));
     const stock = parseInt(await prompt('Enter product stock: '));
 
-    // List existing suppliers
+    // Listing existing suppliers
     const suppliers = await Supplier.find();
     console.log('\nExisting Suppliers:');
     suppliers.forEach((supplier, index) => {
       console.log(`${index + 1}. ${supplier.name}`);
     });
 
-    // Prompt user to select or add a new supplier
+    // Prompting user to select or add a new supplier
     const supplierOption = await prompt('Select a supplier (enter number) or add a new supplier (type "new"): ');
     let supplier;
 
     if (supplierOption.toLowerCase() === 'new') {
+      // Gathering new supplier details
       const supplierName = await prompt('Enter new supplier name (required): ');
       const supplierDescription = await prompt('Enter new supplier description: ');
 
-      // Create a new supplier
+      // Creating a new supplier
       supplier = await Supplier.create({
         name: supplierName,
-        contact: { name: '', email: '' }, // Add default values for contact
+        contact: { name: '', email: '' }, // Default values for contact
       });
 
       console.log(`New supplier '${supplierName}' added successfully.`);
     } else {
       const selectedSupplierIndex = parseInt(supplierOption) - 1;
-
-      // Check if the selected index is valid
       if (selectedSupplierIndex >= 0 && selectedSupplierIndex < suppliers.length) {
         supplier = suppliers[selectedSupplierIndex];
-      }  }
+      }
+    }
 
-    // Create the new product with the selected supplier
+    // Creating the new product with the selected supplier
     const newProduct = await Product.create({
       name,
       category,
@@ -123,30 +129,27 @@ async function addNewProduct() {
 // Function to view products by category
 async function viewProductsByCategory() {
   try {
-    // Find all existing categories
+    // Finding all existing categories
     const existingCategories = await Product.distinct('category');
 
-    // Display existing categories
+    // Displaying existing categories
     console.log('\nExisting Categories:');
     existingCategories.forEach((category, index) => {
       console.log(`${index + 1}. ${category}`);
     });
 
-    // Prompt user to select an existing category or create a new one
+    // Prompting user to select an existing category or create a new one
     const categoryOption = await prompt('Select a category (enter number) or create a new one (type "new"): ');
 
     if (categoryOption.toLowerCase() === 'new') {
-      // If the user chooses to create a new category, call the addNewCategory function
+      // Creating a new category if the user chooses to
       await addNewCategory();
     } else {
-      // If the user selects an existing category, proceed to find and display products
       const selectedCategoryIndex = parseInt(categoryOption) - 1;
-
-      // Check if the selected index is valid
       if (selectedCategoryIndex >= 0 && selectedCategoryIndex < existingCategories.length) {
         const selectedCategory = existingCategories[selectedCategoryIndex];
 
-        // Find products by the selected category
+        // Finding products by the selected category
         const products = await Product.find({ category: selectedCategory }).populate('supplier');
 
         if (products.length === 0) {
@@ -154,7 +157,7 @@ async function viewProductsByCategory() {
           return;
         }
 
-        // Display products with supplier information
+        // Displaying products with supplier information
         console.log(`\nProducts for category '${selectedCategory}':`);
         products.forEach((product) => {
           const supplierInfo = product.supplier ? `Supplier: ${product.supplier.name}` : 'No Supplier';
@@ -170,30 +173,27 @@ async function viewProductsByCategory() {
 // Function to view products by supplier
 async function viewProductsBySupplier() {
   try {
-    // List existing suppliers
+    // Listing existing suppliers
     const suppliers = await Supplier.find();
 
-    // Display existing suppliers
+    // Displaying existing suppliers
     console.log('\nExisting Suppliers:');
     suppliers.forEach((supplier, index) => {
       console.log(`${index + 1}. ${supplier.name}`);
     });
 
-    // Prompt user to select an existing supplier or create a new one
+    // Prompting user to select an existing supplier or create a new one
     const supplierOption = await prompt('Select a supplier (enter number) or create a new one (type "new"): ');
 
     if (supplierOption.toLowerCase() === 'new') {
-      // If the user chooses to create a new supplier, call the addNewSupplier function
+      // Creating a new supplier if the user chooses to
       await addNewSupplier();
     } else {
-      // If the user selects an existing supplier, proceed to find and display products
       const selectedSupplierIndex = parseInt(supplierOption) - 1;
-
-      // Check if the selected index is valid
       if (selectedSupplierIndex >= 0 && selectedSupplierIndex < suppliers.length) {
         const selectedSupplier = suppliers[selectedSupplierIndex];
 
-        // Find products associated with the selected supplier
+        // Finding products associated with the selected supplier
         const products = await Product.find({ supplier: selectedSupplier._id });
 
         if (products.length === 0) {
@@ -201,7 +201,7 @@ async function viewProductsBySupplier() {
           return;
         }
 
-        // Display products
+        // Displaying products
         console.log(`\nProducts for supplier '${selectedSupplier.name}':`);
         products.forEach((product) => {
           console.log(`- Name: ${product.name}, Price: $${product.price}, Cost: $${product.cost}, Stock: ${product.stock}`);
@@ -221,7 +221,7 @@ async function viewOffersWithinPriceRange() {
     const minPrice = parseFloat(await prompt('Enter minimum price: '));
     const maxPrice = parseFloat(await prompt('Enter maximum price: '));
 
-    // Find offers within the price range
+    // Finding offers within the price range
     const offers = await Offer.find({ price: { $gte: minPrice, $lte: maxPrice } });
 
     if (offers.length === 0) {
@@ -229,7 +229,7 @@ async function viewOffersWithinPriceRange() {
       return;
     }
 
-    // Display offers
+    // Displaying offers
     console.log(`\nOffers within the price range $${minPrice} - $${maxPrice}:`);
     offers.forEach((offer) => {
       console.log(`- Offer ${offer._id}, Price: $${offer.price}`);
@@ -242,30 +242,27 @@ async function viewOffersWithinPriceRange() {
 // Function to view all offers that contain a product from a specific category
 async function viewOffersByCategory() {
   try {
-    // Find all existing categories
+    // Finding all existing categories
     const existingCategories = await Product.distinct('category');
 
-    // Display existing categories
+    // Displaying existing categories
     console.log('\nExisting Categories:');
     existingCategories.forEach((category, index) => {
       console.log(`${index + 1}. ${category}`);
     });
 
-    // Prompt user to select an existing category or create a new one
+    // Prompting user to select an existing category or create a new one
     const categoryOption = await prompt('Select a category (enter number) or create a new one (type "new"): ');
 
     if (categoryOption.toLowerCase() === 'new') {
-      // If the user chooses to create a new category, call the addNewCategory function
+      // Creating a new category if the user chooses to
       await addNewCategory();
     } else {
-      // If the user selects an existing category, proceed to find and display offers
       const selectedCategoryIndex = parseInt(categoryOption) - 1;
-
-      // Check if the selected index is valid
       if (selectedCategoryIndex >= 0 && selectedCategoryIndex < existingCategories.length) {
         const selectedCategory = existingCategories[selectedCategoryIndex];
 
-        // Find products in the selected category
+        // Finding products in the selected category
         const products = await Product.find({ category: selectedCategory });
 
         if (products.length === 0) {
@@ -273,7 +270,7 @@ async function viewOffersByCategory() {
           return;
         }
 
-        // Find offers that contain products from the selected category
+        // Finding offers that contain products from the selected category
         const offers = await Offer.find({ products: { $in: products.map((p) => p._id) } });
 
         if (offers.length === 0) {
@@ -281,7 +278,7 @@ async function viewOffersByCategory() {
           return;
         }
 
-        // Display offers
+        // Displaying offers
         console.log(`\nOffers containing products from category '${selectedCategory}':`);
         offers.forEach((offer) => {
           console.log(`- Offer ${offer._id}, Price: $${offer.price}`);
@@ -295,14 +292,13 @@ async function viewOffersByCategory() {
   }
 }
 
-
 // Function to create an order for products
 async function createProductOrder() {
   try {
     const productName = await prompt('Enter product name: ');
     const quantity = parseInt(await prompt('Enter quantity: '));
 
-    // Find the product
+    // Finding the product
     const product = await Product.findOne({ name: productName });
 
     if (!product) {
@@ -310,13 +306,13 @@ async function createProductOrder() {
       return;
     }
 
-    // Check if there is enough stock
+    // Checking if there is enough stock
     if (quantity > product.stock) {
       console.log(`Not enough stock for product '${productName}'. Current stock: ${product.stock}`);
       return;
     }
 
-    // Create a sales order
+    // Creating a sales order
     const salesOrder = await SalesOrder.create({
       offer: null, // Set to null for individual product orders
       quantity,
@@ -334,7 +330,7 @@ async function createOfferOrder() {
   try {
     const offerId = await prompt('Enter offer ID: ');
 
-    // Convert the offerId to a valid ObjectId
+    // Validating the offerId
     const mongoose = require('mongoose');
     const validOfferId = mongoose.Types.ObjectId.isValid(offerId) ? mongoose.Types.ObjectId(offerId) : null;
 
@@ -343,7 +339,7 @@ async function createOfferOrder() {
       return;
     }
 
-    // Find the offer
+    // Finding the offer
     const offer = await Offer.findById(validOfferId);
 
     if (!offer) {
@@ -353,7 +349,7 @@ async function createOfferOrder() {
 
     const quantity = parseInt(await prompt('Enter quantity: '));
 
-    // Check if there is enough stock for the entire offer
+    // Checking if there is enough stock for the entire offer
     const totalStockRequired = quantity * offer.products.length;
     const availableStock = Math.min(...offer.products.map((product) => product.stock));
 
@@ -362,15 +358,15 @@ async function createOfferOrder() {
       return;
     }
 
-    // Calculate the total cost before discount
+    // Calculating the total cost before discount
     const totalCostBeforeDiscount = quantity * offer.price;
 
-    // Apply discount if the quantity is more than 10
+    // Applying discount if the quantity is more than 10
     const discountPercentage = quantity > 10 ? 0.1 : 0; // 10% discount if quantity is more than 10
     const discountAmount = totalCostBeforeDiscount * discountPercentage;
     const totalCostAfterDiscount = totalCostBeforeDiscount - discountAmount;
 
-    // Create a sales order
+    // Creating a sales order
     const salesOrder = await SalesOrder.create({
       offer: offer._id,
       quantity,
@@ -387,7 +383,7 @@ async function createOfferOrder() {
 // Function to ship orders
 async function shipOrders() {
   try {
-    // Find pending sales orders
+    // Finding pending sales orders
     const pendingOrders = await SalesOrder.find({ status: 'pending' }).populate('offer');
 
     if (pendingOrders.length === 0) {
@@ -395,64 +391,64 @@ async function shipOrders() {
       return;
     }
 
-    // Display pending orders with numbers
+    // Displaying pending orders with numbers
     console.log('\nPending Orders:');
     pendingOrders.forEach((order, index) => {
       console.log(`${index + 1}. Order ID: ${order._id}, Quantity: ${order.quantity}, Status: ${order.status}`);
     });
 
-    // Prompt user to select an order to ship
+    // Prompting user to select an order to ship
     const orderNumber = parseInt(await prompt('Enter the number of the order to ship: '));
 
-    // Validate user input
+    // Validating user input
     if (isNaN(orderNumber) || orderNumber < 1 || orderNumber > pendingOrders.length) {
       console.log('Invalid order number. Please enter a valid number.');
       return;
     }
 
-    // Find the selected order
+    // Finding the selected order
     const selectedOrder = pendingOrders[orderNumber - 1];
 
-    // Display order details for confirmation
+    // Displaying order details for confirmation
     console.log('\nSelected Order:');
     console.log(`- Order ID: ${selectedOrder._id}`);
     console.log(`- Quantity: ${selectedOrder.quantity}`);
     console.log(`- Status: ${selectedOrder.status}`);
     
-    // Calculate profit for offers
+    // Calculating profit for offers
     if (selectedOrder.offer) {
       const offer = selectedOrder.offer;
 
-      // Calculate the total cost of the products in the offer
+      // Calculating the total cost of the products in the offer
       const totalCost = offer.products.reduce((sum, product) => sum + product.cost, 0);
 
-      // Calculate the total revenue from the sale
+      // Calculating the total revenue from the sale
       const totalRevenue = selectedOrder.quantity * offer.price;
 
-      // Calculate the profit (excluding tax)
+      // Calculating the profit (excluding tax)
       const profitBeforeTax = totalRevenue - totalCost;
 
-      // Apply the profit tax (30%)
+      // Applying the profit tax (30%)
       const profitTax = 0.3;
       const profitAfterTax = profitBeforeTax * (1 - profitTax);
 
       console.log(`Profit for offer ID '${offer._id}': $${profitAfterTax}`);
 
-      // Update offer with profit information
+      // Updating offer with profit information
       offer.totalRevenue = (offer.totalRevenue || 0) + totalRevenue;
       offer.totalProfit = (offer.totalProfit || 0) + profitAfterTax;
       await offer.save();
     }
 
-    // Update sales order with revenue and profit information
+    // Updating sales order with revenue and profit information
     selectedOrder.totalRevenue = selectedOrder.offer ? selectedOrder.offer.totalRevenue : 0;
     selectedOrder.totalProfit = selectedOrder.offer ? selectedOrder.offer.totalProfit : 0;
 
-    // Update order status to 'shipped'
+    // Updating order status to 'shipped'
     selectedOrder.status = 'shipped';
     await selectedOrder.save();
 
-    // Update stock for individual product orders
+    // Updating stock for individual product orders
     if (!selectedOrder.offer) {
       const product = await Product.findById(selectedOrder.product);
 
@@ -461,7 +457,7 @@ async function shipOrders() {
         return;
       }
 
-      // Check if there is enough stock
+      // Checking if there is enough stock
       if (selectedOrder.quantity > product.stock) {
         console.log(`Not enough stock for product '${product.name}'. Current stock: ${product.stock}`);
         return;
@@ -471,11 +467,11 @@ async function shipOrders() {
       await product.save();
       console.log(`Order ID '${selectedOrder._id}' (Product) shipped successfully.`);
     } else {
-      // Update stock for offers
+      // Updating stock for offers
       const offer = await Offer.findById(selectedOrder.offer);
       const productsInOffer = await Product.find({ _id: { $in: offer.products } });
 
-      // Check if there is enough stock for the entire offer
+      // Checking if there is enough stock for the entire offer
       const totalStockRequired = selectedOrder.quantity * productsInOffer.length;
 
       if (totalStockRequired > offer.price) {
@@ -483,7 +479,7 @@ async function shipOrders() {
         return;
       }
 
-      // Decrease stock for each product in the offer
+      // Decreasing stock for each product in the offer
       for (const product of productsInOffer) {
         product.stock -= selectedOrder.quantity;
         await product.save();
@@ -496,28 +492,10 @@ async function shipOrders() {
   }
 }
 
-// Function to add a new supplier
-async function addNewSupplier() {
-  try {
-    const supplierName = await prompt('Enter new supplier name (required): ');
-    const supplierDescription = await prompt('Enter new supplier description: ');
-
-    // Create a new supplier
-    const newSupplier = await Supplier.create({
-      name: supplierName,
-      contact: { name: '', email: '' }, // Add default values for contact
-    });
-
-    console.log(`New supplier '${supplierName}' added successfully.`);
-  } catch (error) {
-    console.error('Error:', error.message);
-  }
-}
-
 // Function to view suppliers
 async function viewSuppliers() {
   try {
-    // Find all suppliers
+    // Finding all suppliers
     const suppliers = await Supplier.find();
 
     if (suppliers.length === 0) {
@@ -525,7 +503,7 @@ async function viewSuppliers() {
       return;
     }
 
-    // Display suppliers
+    // Displaying suppliers
     console.log('\nSuppliers:');
     suppliers.forEach((supplier) => {
       console.log(`- ${supplier.name}, Contact: ${supplier.contact.name}, Email: ${supplier.contact.email}`);
@@ -538,7 +516,7 @@ async function viewSuppliers() {
 // Function to view all sales
 async function viewSales() {
   try {
-    // Find all sales orders
+    // Finding all sales orders
     const salesOrders = await SalesOrder.find();
 
     if (salesOrders.length === 0) {
@@ -546,7 +524,7 @@ async function viewSales() {
       return;
     }
 
-    // Display sales orders
+    // Displaying sales orders
     console.log('\nSales Orders:');
     salesOrders.forEach((order) => {
       const orderDetails = order.offer ? `Offer ID: ${order.offer}` : 'Individual Product Order';
@@ -560,7 +538,7 @@ async function viewSales() {
 // Function to view the sum of all profits
 async function viewSumOfProfits() {
   try {
-    // Find all sales orders with associated offers
+    // Finding all sales orders with associated offers
     const salesOrdersWithOffers = await SalesOrder.find({ offer: { $ne: null } }).populate('offer');
 
     if (salesOrdersWithOffers.length === 0) {
@@ -568,7 +546,7 @@ async function viewSumOfProfits() {
       return;
     }
 
-    // Calculate the sum of profits
+    // Calculating the sum of profits
     const sumOfProfits = salesOrdersWithOffers.reduce((sum, order) => sum + order.offer.price, 0);
 
     console.log(`Sum of all profits: $${sumOfProfits}`);
@@ -584,7 +562,7 @@ function prompt(question) {
   });
 }
 
-// Start the main menu
+// Starting the main menu
 
 async function mainMenu() {
   await connectToDatabase();
@@ -655,18 +633,16 @@ async function mainMenu() {
         console.log('Exiting the Product Management System. Goodbye!');
         rl.close();
         process.exit(0);
-        break;
       default:
-        console.log('Invalid option. Please select a valid option.');
+        console.log('Invalid option. Please try again.');
+        break;
     }
   } catch (error) {
     console.error('Error:', error.message);
   } finally {
-    // Continue to the main menu
     mainMenu();
   }
 }
 
-// Connect to the MongoDB database before starting the main menu
-connectToDatabase();
+// Running the main menu
 mainMenu();
