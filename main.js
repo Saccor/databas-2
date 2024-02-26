@@ -73,9 +73,29 @@ async function addNewCategory() {
 // Function to add a new product
 async function addNewProduct() {
   try {
+
     // Gathering product details
     const name = await prompt('Enter product name: ');
-    const category = await prompt('Enter product category: ');
+
+    // Listing existing categories
+    const categories = await Category.find();
+    console.log('\nExisting Categories:');
+    categories.forEach((category, index) => {
+      console.log(`${index + 1}. ${category.name}`);
+    });
+
+    // Prompting user to select a category
+    const categoryOption = await prompt('Select a category (enter number): ');
+    let category;
+
+    const selectedCategoryIndex = parseInt(categoryOption) - 1;
+    if (selectedCategoryIndex >= 0 && selectedCategoryIndex < categories.length) {
+      category = categories[selectedCategoryIndex];
+    } else {
+      console.log('Invalid category selection');
+      return;
+    }
+
     const price = parseFloat(await prompt('Enter product price: '));
     const cost = parseFloat(await prompt('Enter product cost: '));
     const stock = parseInt(await prompt('Enter product stock: '));
@@ -110,17 +130,17 @@ async function addNewProduct() {
       }
     }
 
-    // Creating the new product with the selected supplier
+    // Creating the new product with the selected category and supplier
     const newProduct = await Product.create({
       name,
-      category,
+      category: category._id,
       price,
       cost,
       stock,
       supplier: supplier._id,
     });
 
-    console.log(`Product '${name}' added successfully with supplier '${supplier.name}'.`);
+    console.log(`Product '${name}' added successfully with category '${category.name}' and supplier '${supplier.name}'.`);
   } catch (error) {
     console.error('Error:', error.message);
   }
@@ -129,13 +149,16 @@ async function addNewProduct() {
 // Function to view products by category
 async function viewProductsByCategory() {
   try {
+    // Import the Category model if it's defined in a separate file
+    const Category = require('./categoryModel'); // Adjust the path if necessary
+
     // Finding all existing categories
-    const existingCategories = await Product.distinct('category');
+    const existingCategories = await Category.find();
 
     // Displaying existing categories
     console.log('\nExisting Categories:');
     existingCategories.forEach((category, index) => {
-      console.log(`${index + 1}. ${category}`);
+      console.log(`${index + 1}. ${category.name}`);
     });
 
     // Prompting user to select an existing category or create a new one
@@ -153,12 +176,12 @@ async function viewProductsByCategory() {
         const products = await Product.find({ category: selectedCategory }).populate('supplier');
 
         if (products.length === 0) {
-          console.log(`No products found for category '${selectedCategory}'.`);
+          console.log(`No products found for category '${selectedCategory.name}'.`);
           return;
         }
 
         // Displaying products with supplier information
-        console.log(`\nProducts for category '${selectedCategory}':`);
+        console.log(`\nProducts for category '${selectedCategory.name}':`);
         products.forEach((product) => {
           const supplierInfo = product.supplier ? `Supplier: ${product.supplier.name}` : 'No Supplier';
           console.log(`- ${product.name}, Price: $${product.price}, Stock: ${product.stock}, ${supplierInfo}`);
@@ -169,6 +192,7 @@ async function viewProductsByCategory() {
     console.error('Error:', error.message);
   }
 }
+
 
 // Function to view products by supplier
 async function viewProductsBySupplier() {
