@@ -1,7 +1,5 @@
 import mongoose from 'mongoose';
 import readline from 'readline';
-export { Product, Offer, Supplier, SalesOrder, Category };
-
 
 // Connect to the MongoDB database
 async function connectToDatabase() {
@@ -15,46 +13,53 @@ async function connectToDatabase() {
 }
 
 // Define mongoose models based on schemas
-const Product = mongoose.model('Product', new mongoose.Schema({
+
+const ProductSchema = new mongoose.Schema({
   name: String,
-  category: String,
+  category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
   price: Number,
   cost: Number,
   stock: Number,
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier' },
-}));
+});
 
-const Offer = mongoose.model('Offer', new mongoose.Schema({
-  products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+const OfferSchema = new mongoose.Schema({
+  products: [{ product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' }, quantity: Number }],
   price: Number,
   active: Boolean,
-}));
+});
 
-const Supplier = mongoose.model('Supplier', new mongoose.Schema({
+const SupplierSchema = new mongoose.Schema({
   name: String,
+  description: String,
   contact: {
     name: String,
     email: String,
   },
-}));
+  category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
+});
 
-const SalesOrder = mongoose.model('SalesOrder', new mongoose.Schema({
+const SalesOrderSchema = new mongoose.Schema({
   offer: { type: mongoose.Schema.Types.ObjectId, ref: 'Offer' },
+  product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   quantity: Number,
   status: String,
-}));
+});
 
 // Define the schema for the Category model
 const categorySchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    unique: true // Ensure category names are unique
+    unique: true
   },
-  // Add additional fields as needed
 });
 
-const Category = mongoose.model('Category', categorySchema);
+export const Product = mongoose.model('Product', ProductSchema);
+export const Offer = mongoose.model('Offer', OfferSchema);
+export const Supplier = mongoose.model('Supplier', SupplierSchema);
+export const SalesOrder = mongoose.model('SalesOrder', SalesOrderSchema);
+export const Category = mongoose.model('Category', categorySchema);
 
 // Function to create a new category
 async function createCategory(categoryName) {
@@ -77,51 +82,6 @@ async function getExistingCategories() {
     });
   } catch (error) {
     console.error('Error:', error.message);
-  }
-}
-
-// Function to add a new supplier
-async function addNewSupplier() {
-  try {
-    const supplierName = await askQuestion('Enter new supplier name (required): ');
-    const supplierDescription = await askQuestion('Enter new supplier description: ');
-
-    // Display existing categories
-    await getExistingCategories();
-
-    const categoryIndex = await askQuestion('Select a category (enter number) for the supplier: ');
-    const selectedCategory = await Category.findOne({}, 'name').skip(parseInt(categoryIndex) - 1);
-
-    // Create a new supplier with selected category
-    const newSupplier = await Supplier.create({
-      name: supplierName,
-      description: supplierDescription,
-      contact: { name: '', email: '' },
-      category: selectedCategory._id,
-    });
-
-    console.log(`New supplier '${supplierName}' added successfully.`);
-  } catch (error) {
-    console.error('Error:', error.message);
-  }
-}
-
-// Function to insert sample products
-async function insertSampleProducts() {
-  try {
-    const sampleProducts = [
-      { name: 'Laptop', category: 'Electronics', price: 1000, cost: 800, stock: 50 },
-      { name: 'Smartphone', category: 'Electronics', price: 800, cost: 600, stock: 40 },
-      { name: 'T-shirt', category: 'Clothing', price: 20, cost: 10, stock: 100 },
-      { name: 'Refrigerator', category: 'Home Appliances', price: 1200, cost: 1000, stock: 30 },
-      { name: 'Shampoo', category: 'Beauty & Personal Care', price: 10, cost: 5, stock: 80 },
-      { name: 'Soccer Ball', category: 'Sports & Outdoors', price: 30, cost: 20, stock: 60 }
-    ];
-
-    await Product.insertMany(sampleProducts);
-    console.log('Sample products inserted successfully.');
-  } catch (error) {
-    console.error('Error inserting sample products:', error.message);
   }
 }
 
@@ -157,10 +117,10 @@ async function insertSampleCategories() {
   }
 }
 
-// Insert suppliers  
 async function insertSampleSuppliers() {
   try {
-    const categories = await Category.find({}, 'name');
+    const categories = await Category.find({}, '_id name');
+    console.log('Categories:', categories);
 
     const suppliersData = [
       {
@@ -195,44 +155,105 @@ async function insertSampleSuppliers() {
       },
     ];
 
+    
+
     const suppliers = await Supplier.create(suppliersData);
-    console.log('Sample suppliers inserted successfully');
     return suppliers;
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
 
-// Insert sample offers
-async function insertSampleOffers() {
-  // Sample offers data
-  const sampleOffers = [
-    { products: ['Laptop', 'Smartphone'], price: 1800, active: true },
-    { products: ['T-shirt', 'Shampoo'], price: 30, active: true },
-    { products: ['Refrigerator', 'Smartphone', 'Soccer Ball'], price: 1830, active: false }
-  ];
-
+async function insertSampleProducts() {
   try {
-    // Get product IDs for the offers
-    const products = await Product.find({}, '_id name');
+    const categories = await Category.find({}, '_id name');
+    
 
-    // Map product names to their IDs
-    const productMap = new Map(products.map(product => [product.name, product._id]));
+    const suppliers = await Supplier.find({}, '_id name category');
+    
 
-    // Transform offer data to include product IDs
-    const offersData = sampleOffers.map(offer => ({
-      products: offer.products.map(productName => productMap.get(productName)),
-      price: offer.price,
-      active: offer.active
-    }));
+    // Shuffle the suppliers array to randomize the selection process
+    const shuffledSuppliers = suppliers.sort(() => Math.random() - 0.5);
+
+    const sampleProducts = [
+      { name: 'Smartphone', category: categories.find(cat => cat.name === 'Electronics')._id, price: 800, cost: 600, stock: 40 },
+      { name: 'Naruto Shippuden', category: categories.find(cat => cat.name === 'Books')._id, price: 20, cost: 10, stock: 100 },
+      { name: 'Bandaid', category: categories.find(cat => cat.name === 'Medical')._id, price: 1200, cost: 1000, stock: 30 },
+      { name: 'Sushi', category: categories.find(cat => cat.name === 'Food')._id, price: 10, cost: 5, stock: 80 },
+      { name: 'Anchor', category: categories.find(cat => cat.name === 'Shipyard')._id, price: 30, cost: 20, stock: 60 }
+    ];
+
+    
+
+    // Iterate through each supplier and assign them a product
+    for (let i = 0; i < Math.min(sampleProducts.length, suppliers.length); i++) {
+      const productData = sampleProducts[i];
+      const supplier = shuffledSuppliers[i];
+
+      // console.log(`Product ${productData.name} - Category: ${productData.category}, Supplier: ${supplier.name}`);
+
+      // Assign the selected supplier to the product
+      productData.supplier = supplier._id;
+
+      // Create and save the product
+      const product = new Product(productData);
+      await product.save();
+    }
+
+  
+  } catch (error) {
+  
+  }
+}
+
+
+//sampleoffers//
+async function insertSampleOffers() {
+  try {
+    // Get all products from the database
+    const products = await Product.find({}, '_id name price');
+
+    // Randomly select products for each offer
+    const offer1Products = getRandomProducts(products, 2);
+    const offer2Products = getRandomProducts(products, 3);
+    const offer3Products = getRandomProducts(products, 4);
+
+    // Calculate total price for each offer
+    const offer1Price = calculateTotalPrice(offer1Products);
+    const offer2Price = calculateTotalPrice(offer2Products);
+    const offer3Price = calculateTotalPrice(offer3Products);
+
+    // Ensure total prices are valid numbers
+    if (isNaN(offer1Price) || isNaN(offer2Price) || isNaN(offer3Price)) {
+      throw new Error('Invalid total price for one or more offers.');
+    }
+
+    // Create offers
+    const offers = [
+      { products: offer1Products.map(product => product._id), price: offer1Price, active: true },
+      { products: offer2Products.map(product => product._id), price: offer2Price, active: true },
+      { products: offer3Products.map(product => product._id), price: offer3Price, active: true }
+    ];
 
     // Insert offers into the database
-    await Offer.insertMany(offersData);
-    console.log('Sample offers inserted successfully.');
+    await Offer.insertMany(offers);
   } catch (error) {
     console.error('Error inserting sample offers:', error.message);
   }
 }
+
+
+// Function to randomly select products
+function getRandomProducts(products, count) {
+  const shuffledProducts = products.sort(() => Math.random() - 0.5);
+  return shuffledProducts.slice(0, count);
+}
+
+// Function to calculate total price of products in an offer
+function calculateTotalPrice(products) {
+  return products.reduce((total, product) => total + product.price, 0);
+}
+
 
 // Sample data insertion
 async function insertSampleData() {
@@ -242,12 +263,11 @@ async function insertSampleData() {
     await insertSampleSuppliers();
     await insertSampleProducts();
     await insertSampleOffers();
-    console.log('Sample data insertion completed.');
   } catch (error) {
     console.error('Error inserting sample data:', error.message);
   }
 }
 
+
 // Insert sample data and display main menu
 insertSampleData();
-
