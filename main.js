@@ -369,7 +369,7 @@ async function createProductOrder() {
     await selectedProduct.save();
 
     // Calculate and update the sum of all profits
-    await updateSumOfProfits();
+    await viewSumOfProfits();
   } catch (error) {
     console.error('Error:', error.message);
   }
@@ -474,8 +474,39 @@ async function shipOrders() {
     // Update stock for individual product orders or offers
     if (!selectedOrder.offer) {
       // Update stock for individual product orders
+      const product = await Product.findById(selectedOrder.product);
+      if (!product) {
+        console.log(`Product not found for order ID '${selectedOrder._id}'.`);
+        return;
+      }
+      // Check if there is enough stock
+      if (selectedOrder.quantity > product.stock) {
+        console.log(`Not enough stock for product '${product.name}'. Current stock: ${product.stock}`);
+        return;
+      }
+      product.stock -= selectedOrder.quantity;
+      await product.save();
+      console.log(`Order ID '${selectedOrder._id}' (Product) shipped successfully.`);
     } else {
       // Update stock for offers
+      const offer = await Offer.findById(selectedOrder.offer);
+      if (!offer) {
+        console.log(`Offer not found for order ID '${selectedOrder._id}'.`);
+        return;
+      }
+      const productsInOffer = await Product.find({ _id: { $in: offer.products } });
+      // Check if there is enough stock for the entire offer
+      const totalStockRequired = selectedOrder.quantity * productsInOffer.length;
+      if (totalStockRequired > offer.price) {
+        console.log(`Not enough stock for the entire offer. Available stock: ${offer.price}`);
+        return;
+      }
+      // Decrease stock for each product in the offer
+      for (const product of productsInOffer) {
+        product.stock -= selectedOrder.quantity;
+        await product.save();
+      }
+      console.log(`Order ID '${selectedOrder._id}' (Offer) shipped successfully.`);
     }
 
     // Update profits in the database
@@ -485,10 +516,15 @@ async function shipOrders() {
       selectedOrder.profit = totalProfit;
       await selectedOrder.save();
     }
+
+    // Update sum of all profits
+    await viewSumOfProfits();
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
+
+
 
 
 
@@ -572,32 +608,28 @@ async function viewSales() {
     console.error('Error:', error.message);
   }
 }
-
-// Function to update the sum of all profits in the database
-async function updateSumOfProfits() {
+// 14 ----- Function to view the sum of all profits ----- 14
+async function viewSumOfProfits() {
   try {
     // Find all sales orders with associated offers
-    const salesOrdersWithOffers = await SalesOrder.find({ offer: { $exists: true } }).populate('offer');
+    const salesOrdersWithOffers = await SalesOrder.find({ offer: { $exists: true } }).populate('offer product');
 
     if (salesOrdersWithOffers.length === 0) {
       console.log('No sales orders with associated offers found.');
       return;
     }
 
-    // Calculate the sum of profits
-    let sumOfProfits = 0;
+    // Display profits for each sales order
+    console.log('Profits for each sales order:');
     for (const order of salesOrdersWithOffers) {
       const offer = order.offer;
       if (!offer) continue;
 
-      // Fetch the latest offer data from the database
-      const updatedOffer = await Offer.findById(offer._id);
-
       // Calculate total cost of the products in the offer
-      const totalCost = updatedOffer.products.reduce((sum, product) => sum + product.cost, 0);
+      const totalCost = offer.products.reduce((sum, product) => sum + product.cost, 0);
 
       // Calculate total revenue from the sale
-      const totalRevenue = order.quantity * updatedOffer.price;
+      const totalRevenue = order.quantity * offer.price;
 
       // Calculate profit (excluding tax)
       const profitBeforeTax = totalRevenue - totalCost;
@@ -606,16 +638,50 @@ async function updateSumOfProfits() {
       const profitTax = 0.3;
       const profitAfterTax = profitBeforeTax * (1 - profitTax);
 
+      console.log(`Order ID: ${order._id}, Profit: $${profitAfterTax.toFixed(2)}`);
+    }
+
+    // Calculate the sum of profits
+    let sumOfProfits = salesOrdersWithOffers.reduce((sum, order) => {
+      const offer = order.offer;
+      if (!offer) return sum;
+
+      // Calculate total cost of the products in the offer
+      const totalCost = offer.products.reduce((sum, product) => sum + product.cost, 0);
+
+      // Calculate total revenue from the sale
+      const totalRevenue = order.quantity * offer.price;
+
+      // Calculate profit (excluding tax)
+      const profitBeforeTax = totalRevenue - totalCost;
+
+      // Apply profit tax (30%)
+      const profitTax = 0.3;
+      const profitAfterTax = profitBeforeTax * (1 - profitTax);
+
+      return sum + profitAfterTax;
+    }, 0);
+
+    // Include profits from individual product orders
+    const individualOrders = await SalesOrder.find({ offer: { $exists: false } }).populate('product');
+    for (const order of individualOrders) {
+      const totalRevenue = order.quantity * order.price; // Assuming each product has a price
+      const totalCost = order.quantity * order.cost; // Assuming each product has a cost
+      const profitBeforeTax = totalRevenue - totalCost;
+      const profitTax = 0.3;
+      const profitAfterTax = profitBeforeTax * (1 - profitTax);
       sumOfProfits += profitAfterTax;
     }
 
-    // Update the sum of profits in the database
-    // (You need to implement the logic to update the sum of profits in the database here)
     console.log(`Sum of all profits: $${sumOfProfits.toFixed(2)}`);
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
+
+
+
+
 
 
 // Function to prompt the user for input
