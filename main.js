@@ -1,13 +1,12 @@
-// Required modules
-const mongoose = require('mongoose');
-const readline = require('readline');
+import mongoose from 'mongoose';
+import readline from 'readline';
+import { Product, Offer, Supplier, SalesOrder, Category, } from './create-database.js';
 
 // Connect to the MongoDB database
 async function connectToDatabase() {
   try {
-    await mongoose.connect('mongodb://localhost:27017/product_management', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+    await mongoose.connect('mongodb://localhost:27017/Webbshop', {
+
     });
     console.log('Connected to MongoDB');
   } catch (error) {
@@ -16,86 +15,56 @@ async function connectToDatabase() {
   }
 }
 
-// Define mongoose models based on schemas
-const Product = mongoose.model('Product', new mongoose.Schema({
-  name: String,
-  category: String,
-  price: Number,
-  cost: Number,
-  stock: Number,
-  supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier' },
-}));
-
-const Offer = mongoose.model('Offer', new mongoose.Schema({
-  products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
-  price: Number,
-  active: Boolean,
-}));
-
-const Supplier = mongoose.model('Supplier', new mongoose.Schema({
-  name: String,
-  contact: {
-    name: String,
-    email: String,
-  },
-}));
-
-const SalesOrder = mongoose.model('SalesOrder', new mongoose.Schema({
-  offer: { type: mongoose.Schema.Types.ObjectId, ref: 'Offer' },
-  quantity: Number,
-  status: String,
-}));
-
-// Create readline interface
+// Define readline interface
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-// Function to prompt the user for input
-function prompt(question) {
-  return new Promise((resolve) => {
-    rl.question(question, resolve);
-  });
-}
 
-// Function to add a new category
+// Function to add a new category ------ 1
 async function addNewCategory() {
   try {
     const category = await prompt('Enter category name: ');
+    
+    // Create a new Category document and save it to the database
+    const newCategory = new Category({ name: category });
+    await newCategory.save();
+
     console.log(`Category '${category}' added successfully.`);
-    // Logic to save the category to the database (if needed)
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
 
-// Function to add a new product
+
 async function addNewProduct() {
   try {
-
     // Gathering product details
     const name = await prompt('Enter product name: ');
 
-    // Listing existing categories
+    // Query and list existing categories
     const categories = await Category.find();
     console.log('\nExisting Categories:');
-    categories.forEach((category, index) => {
-      console.log(`${index + 1}. ${category.name}`);
-    });
+    categories.forEach((category, index) => console.log(`${index + 1}. ${category.name}`));
 
-    // Prompting user to select a category
-    const categoryOption = await prompt('Select a category (enter number): ');
-    let category;
+    // Prompt the user to select a category or add a new one
+    const categoryIndex = parseInt(await prompt('Select a category (enter number) or add a new one: '));
+    let selectedCategory;
 
-    const selectedCategoryIndex = parseInt(categoryOption) - 1;
-    if (selectedCategoryIndex >= 0 && selectedCategoryIndex < categories.length) {
-      category = categories[selectedCategoryIndex];
+    if (!isNaN(categoryIndex) && categoryIndex > 0 && categoryIndex <= categories.length) {
+      selectedCategory = categories[categoryIndex - 1];
+    } else if (categoryIndex === categories.length + 1) {
+      // User wants to add a new category
+      const newCategoryName = await prompt('Enter the name of the new category: ');
+      selectedCategory = await Category.create({ name: newCategoryName });
+      console.log(`New category '${newCategoryName}' added successfully.`);
     } else {
-      console.log('Invalid category selection');
+      console.log('Invalid selection.');
       return;
     }
 
+    // Gather other product details
     const price = parseFloat(await prompt('Enter product price: '));
     const cost = parseFloat(await prompt('Enter product cost: '));
     const stock = parseInt(await prompt('Enter product stock: '));
@@ -103,55 +72,30 @@ async function addNewProduct() {
     // Listing existing suppliers
     const suppliers = await Supplier.find();
     console.log('\nExisting Suppliers:');
-    suppliers.forEach((supplier, index) => {
-      console.log(`${index + 1}. ${supplier.name}`);
-    });
+    suppliers.forEach((supplier, index) => console.log(`${index + 1}. ${supplier.name}`));
 
-    // Prompting user to select or add a new supplier
-    const supplierOption = await prompt('Select a supplier (enter number) or add a new supplier (type "new"): ');
-    let supplier;
+    // Prompting user to select or add a new supplier (assuming you have this functionality implemented)
 
-    if (supplierOption.toLowerCase() === 'new') {
-      // Gathering new supplier details
-      const supplierName = await prompt('Enter new supplier name (required): ');
-      const supplierDescription = await prompt('Enter new supplier description: ');
-
-      // Creating a new supplier
-      supplier = await Supplier.create({
-        name: supplierName,
-        contact: { name: '', email: '' }, // Default values for contact
-      });
-
-      console.log(`New supplier '${supplierName}' added successfully.`);
-    } else {
-      const selectedSupplierIndex = parseInt(supplierOption) - 1;
-      if (selectedSupplierIndex >= 0 && selectedSupplierIndex < suppliers.length) {
-        supplier = suppliers[selectedSupplierIndex];
-      }
-    }
-
-    // Creating the new product with the selected category and supplier
+    // Creating the new product with the selected category
     const newProduct = await Product.create({
       name,
-      category: category._id,
+      category: selectedCategory._id,
       price,
       cost,
       stock,
-      supplier: supplier._id,
+      // Add supplier logic here if needed
     });
 
-    console.log(`Product '${name}' added successfully with category '${category.name}' and supplier '${supplier.name}'.`);
+    console.log(`Product '${name}' added successfully with category '${selectedCategory.name}'.`);
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
 
-// Function to view products by category
-async function viewProductsByCategory() {
-  try {
-    // Import the Category model if it's defined in a separate file
-    const Category = require('./categoryModel'); // Adjust the path if necessary
 
+// Function to view products by category
+const viewProductsByCategory = async () => {
+  try {
     // Finding all existing categories
     const existingCategories = await Category.find();
 
@@ -191,7 +135,7 @@ async function viewProductsByCategory() {
   } catch (error) {
     console.error('Error:', error.message);
   }
-}
+};
 
 
 // Function to view products by supplier
@@ -239,7 +183,7 @@ async function viewProductsBySupplier() {
   }
 }
 
-// Function to view all offers within a price range
+// Function to view all offers within a price range ------- 5
 async function viewOffersWithinPriceRange() {
   try {
     const minPrice = parseFloat(await prompt('Enter minimum price: '));
@@ -263,7 +207,6 @@ async function viewOffersWithinPriceRange() {
   }
 }
 
-// Function to view all offers that contain a product from a specific category
 async function viewOffersByCategory() {
   try {
     // Finding all existing categories
@@ -307,6 +250,16 @@ async function viewOffersByCategory() {
         offers.forEach((offer) => {
           console.log(`- Offer ${offer._id}, Price: $${offer.price}`);
         });
+
+        // Calculate and display summary based on product stock availability
+        const allProductsInStockCount = offers.filter(offer => offer.products.every(product => product.stock > 0)).length;
+        const someProductsInStockCount = offers.filter(offer => offer.products.some(product => product.stock > 0)).length;
+        const noProductsInStockCount = offers.filter(offer => offer.products.every(product => product.stock === 0)).length;
+
+        console.log('\nSummary based on product stock availability:');
+        console.log(`- Offers with all products in stock: ${allProductsInStockCount}`);
+        console.log(`- Offers with some products in stock: ${someProductsInStockCount}`);
+        console.log(`- Offers with no products in stock: ${noProductsInStockCount}`);
       } else {
         console.log('Invalid category selection. Please try again.');
       }
@@ -316,7 +269,7 @@ async function viewOffersByCategory() {
   }
 }
 
-// Function to create an order for products
+// Function to create an order for products ----- 8
 async function createProductOrder() {
   try {
     const productName = await prompt('Enter product name: ');
@@ -349,62 +302,36 @@ async function createProductOrder() {
   }
 }
 
-// Function to create an order for offers
-async function createOfferOrder() {
+/// 9------- Function to create order for offer ---- 9
+// Function to create a sales order for an offer
+async function createOfferOrder(offerId, quantity, additionalDetails) {
   try {
-    const offerId = await prompt('Enter offer ID: ');
-
-    // Validating the offerId
-    const mongoose = require('mongoose');
-    const validOfferId = mongoose.Types.ObjectId.isValid(offerId) ? mongoose.Types.ObjectId(offerId) : null;
-
-    if (!validOfferId) {
-      console.log('Invalid offer ID format. Please enter a valid ObjectId.');
-      return;
-    }
-
-    // Finding the offer
-    const offer = await Offer.findById(validOfferId);
-
+    // Check if the offer exists
+    const offer = await Offer.findById(offerId);
     if (!offer) {
-      console.log(`Offer with ID '${validOfferId}' not found.`);
+      console.log('Offer not found.');
       return;
     }
 
-    const quantity = parseInt(await prompt('Enter quantity: '));
-
-    // Checking if there is enough stock for the entire offer
-    const totalStockRequired = quantity * offer.products.length;
-    const availableStock = Math.min(...offer.products.map((product) => product.stock));
-
-    if (totalStockRequired > availableStock) {
-      console.log(`Not enough stock for the entire offer. Available stock: ${availableStock}`);
-      return;
-    }
-
-    // Calculating the total cost before discount
-    const totalCostBeforeDiscount = quantity * offer.price;
-
-    // Applying discount if the quantity is more than 10
-    const discountPercentage = quantity > 10 ? 0.1 : 0; // 10% discount if quantity is more than 10
-    const discountAmount = totalCostBeforeDiscount * discountPercentage;
-    const totalCostAfterDiscount = totalCostBeforeDiscount - discountAmount;
-
-    // Creating a sales order
-    const salesOrder = await SalesOrder.create({
-      offer: offer._id,
+    // Create a new sales order
+    const newOrder = new SalesOrder({
+      offer: offerId,
       quantity,
-      status: 'pending',
-      totalCost: totalCostAfterDiscount, // Save the discounted total cost in the sales order
+      additionalDetails,
+      status: 'pending', // Assuming the initial status is pending
     });
 
-    console.log(`Order for offer ID '${validOfferId}' created successfully. Order ID: ${salesOrder._id}`);
+    // Save the new sales order to the database
+    await newOrder.save();
+
+    console.log('Sales order created successfully.');
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error creating sales order:', error.message);
   }
 }
 
-// Function to ship orders
+
+// 10 ----- Function to ship orders ----- 10
 async function shipOrders() {
   try {
     // Finding pending sales orders
@@ -516,7 +443,7 @@ async function shipOrders() {
   }
 }
 
-// Function to view suppliers
+// 12. Function to view suppliers 12.
 async function viewSuppliers() {
   try {
     // Finding all suppliers
@@ -537,7 +464,7 @@ async function viewSuppliers() {
   }
 }
 
-// Function to view all sales
+// 13. Function to view all sales 13
 async function viewSales() {
   try {
     // Finding all sales orders
@@ -559,7 +486,7 @@ async function viewSales() {
   }
 }
 
-// Function to view the sum of all profits
+// 14----- Function to view the sum of all profits -----  14
 async function viewSumOfProfits() {
   try {
     // Finding all sales orders with associated offers
@@ -586,87 +513,90 @@ function prompt(question) {
   });
 }
 
-// Starting the main menu
-
+// Define the main menu function
 async function mainMenu() {
-  await connectToDatabase();
-  try {
-    console.log('\n=== Product Management System ===');
-    console.log('1. Add new category');
-    console.log('2. Add new product');
-    console.log('3. View products by category');
-    console.log('4. View products by supplier');
-    console.log('5. View all offers within a price range');
-    console.log('6. View all offers that contain a product from a specific category');
-    console.log('7. View the number of offers based on the number of its products in stock');
-    console.log('8. Create order for products');
-    console.log('9. Create order for offers');
-    console.log('10. Ship orders');
-    console.log('11. Add a new supplier');
-    console.log('12. View suppliers');
-    console.log('13. View all sales');
-    console.log('14. View sum of all profits');
-    console.log('15. Exit');
+  await connectToDatabase(); // Connect to the database
+  
+  while (true) { // Loop indefinitely until a valid option is selected
+    try {
+      console.log('\n=== Product Management System ===');
+      // Display the menu options
+      console.log('1. Add new category');
+      console.log('2. Add new product');
+      console.log('3. View products by category');
+      console.log('4. View products by supplier');
+      console.log('5. View all offers within a price range');
+      console.log('6. View all offers that contain a product from a specific category');
+      console.log('7. View the number of offers based on the number of its products in stock');
+      console.log('8. Create order for products');
+      console.log('9. Create order for offers');
+      console.log('10. Ship orders');
+      console.log('11. Add a new supplier');
+      console.log('12. View suppliers');
+      console.log('13. View all sales');
+      console.log('14. View sum of all profits');
+      console.log('15. Exit');
 
-    const option = await prompt('Select an option (1-15): ');
+      // Prompt the user to select an option
+      const option = await prompt('Select an option (1-15): ');
 
-    switch (option) {
-      case '1':
-        await addNewCategory();
-        break;
-      case '2':
-        await addNewProduct();
-        break;
-      case '3':
-        await viewProductsByCategory();
-        break;
-      case '4':
-        await viewProductsBySupplier();
-        break;
-      case '5':
-        await viewOffersWithinPriceRange();
-        break;
-      case '6':
-        await viewOffersByCategory();
-        break;
-      case '7':
-        await viewOfferCountByStock();
-        break;
-      case '8':
-        await createProductOrder();
-        break;
-      case '9':
-        await createOfferOrder();
-        break;
-      case '10':
-        await shipOrders();
-        break;
-      case '11':
-        await addNewSupplier();
-        break;
-      case '12':
-        await viewSuppliers();
-        break;
-      case '13':
-        await viewSales();
-        break;
-      case '14':
-        await viewSumOfProfits();
-        break;
-      case '15':
-        console.log('Exiting the Product Management System. Goodbye!');
-        rl.close();
-        process.exit(0);
-      default:
-        console.log('Invalid option. Please try again.');
-        break;
+      // Check the selected option and perform corresponding actions
+      switch (option) {
+        case '1':
+          await addNewCategory();
+          break;
+        case '2':
+          await addNewProduct();
+          break;
+        case '3':
+          await viewProductsByCategory();
+          break;
+        case '4':
+          await viewProductsBySupplier();
+          break;
+        case '5':
+          await viewOffersWithinPriceRange();
+          break;
+        case '6':
+          await viewOffersByCategory();
+          break;
+        case '7':
+          await viewOfferCountByStock();
+          break;
+        case '8':
+          await createProductOrder();
+          break;
+        case '9':
+          await createOfferOrder();
+          break;
+        case '10':
+          await shipOrders();
+          break;
+        case '11':
+          await addNewSupplier();
+          break;
+        case '12':
+          await viewSuppliers();
+          break;
+        case '13':
+          await viewSales();
+          break;
+        case '14':
+          await viewSumOfProfits();
+          break;
+        case '15':
+          console.log('Exiting the Product Management System. Goodbye!');
+          rl.close();
+          process.exit(0);
+        default:
+          console.log('Invalid option. Please try again.'); // Display error message for invalid option
+          continue; // Restart the loop to prompt the user again
+      }
+    } catch (error) {
+      console.error('Error:', error.message);
     }
-  } catch (error) {
-    console.error('Error:', error.message);
-  } finally {
-    mainMenu();
   }
 }
 
-// Running the main menu
+// Running the main menu once
 mainMenu();
